@@ -1,5 +1,5 @@
 /**
- * EnemySystem - Sistema de Niveles de Amenaza progresivos, Jefes cada 5.000 pts y spawn veloz
+ * EnemySystem - Sistema de Niveles de Amenaza, Jefes cada 5.000 pts y Gárgolas de Alto Contraste
  */
 export class EnemySystem {
     constructor(scene, camera, audioManager, weaponSystem) {
@@ -19,7 +19,7 @@ export class EnemySystem {
         this.score = 0;
         this.demonsPurged = 0;
 
-        // Sistema de Niveles de Amenaza (Threat Level)
+        // Sistema de Niveles de Amenaza
         this.currentLevel = 1;
         this.levelThresholds = [0, 1500, 3500, 6500, 10500, 15500, 22000, 30000];
         this.nextLevelScore = 1500;
@@ -58,7 +58,6 @@ export class EnemySystem {
             this.currentLevel = calculatedLevel;
             this.nextLevelScore = this.levelThresholds[this.currentLevel] || (this.score + 10000);
 
-            // Escalar dificultad
             this.spawnInterval = Math.max(2.0, 4.5 - (this.currentLevel * 0.45));
             this.maxEnemies = Math.min(30, 18 + this.currentLevel * 2);
             this.audioManager.playPickup();
@@ -101,7 +100,6 @@ export class EnemySystem {
 
         this.scene.add(group);
 
-        // Velocidad escala con el nivel
         const speedBonus = (this.currentLevel - 1) * 0.4;
 
         const enemyObj = {
@@ -172,29 +170,47 @@ export class EnemySystem {
         this.enemies.push(enemyObj);
     }
 
+    /* --- GÁRGOLAS / DEMONIOS VOLADORES DE ALTO CONTRASTE --- */
     spawnFlyingDemon(x, y, z) {
         const group = new THREE.Group();
         group.position.set(x, y, z);
 
-        const skinMat = new THREE.MeshLambertMaterial({ color: 0x241138 });
-        const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0044 });
-        const wingMat = new THREE.MeshLambertMaterial({ color: 0x140a1f, side: THREE.DoubleSide });
+        // Colores amatista vibrante para que el cuerpo entero y las alas rendericen caracteres ASCII nítidos
+        const skinMat = new THREE.MeshLambertMaterial({ color: 0x9922cc, flatShading: true });
+        const eyeMat = new THREE.MeshBasicMaterial({ color: 0x00ffff }); // Ojos cian neón
+        const wingMat = new THREE.MeshLambertMaterial({ color: 0x661188, side: THREE.DoubleSide });
+        const hornMat = new THREE.MeshBasicMaterial({ color: 0xff0055 });
 
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.9, 0.6), skinMat);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.0, 0.7), skinMat);
         group.add(body);
 
-        const eye = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.05), eyeMat);
-        eye.position.set(0, 0.15, 0.31);
-        group.add(eye);
+        const eye1 = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.06), eyeMat);
+        eye1.position.set(-0.18, 0.18, 0.36);
+        group.add(eye1);
 
-        const wingGeo = new THREE.PlaneGeometry(2.4, 1.2);
+        const eye2 = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.06), eyeMat);
+        eye2.position.set(0.18, 0.18, 0.36);
+        group.add(eye2);
+
+        const h1 = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.4, 4), hornMat);
+        h1.position.set(-0.25, 0.65, 0.1);
+        h1.rotation.z = 0.35;
+        group.add(h1);
+
+        const h2 = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.4, 4), hornMat);
+        h2.position.set(0.25, 0.65, 0.1);
+        h2.rotation.z = -0.35;
+        group.add(h2);
+
+        // Alas grandes y visibles
+        const wingGeo = new THREE.PlaneGeometry(2.8, 1.4);
         const leftWing = new THREE.Mesh(wingGeo, wingMat);
-        leftWing.position.set(-1.4, 0.2, 0);
+        leftWing.position.set(-1.6, 0.2, 0);
         leftWing.rotation.y = 0.3;
         group.add(leftWing);
 
         const rightWing = new THREE.Mesh(wingGeo, wingMat);
-        rightWing.position.set(1.4, 0.2, 0);
+        rightWing.position.set(1.6, 0.2, 0);
         rightWing.rotation.y = -0.3;
         group.add(rightWing);
 
@@ -211,7 +227,7 @@ export class EnemySystem {
             hp: 55,
             maxHp: 55,
             speed: 9.0 + speedBonus,
-            hitRadius: 1.8,
+            hitRadius: 2.0,
             centerY: 0.0,
             halfHeight: 1.6,
             isAlive: true,
@@ -357,7 +373,6 @@ export class EnemySystem {
         const playerPos = this.camera.position;
         let maxCorruptionProximity = 0;
 
-        // Comprobar Boss cada 5.000 puntos
         if (this.score >= this.nextBossScore && !this.activeBoss) {
             this.nextBossScore += 5000;
             this.bossTier++;
@@ -422,7 +437,6 @@ export class EnemySystem {
             }
         }
 
-        // Spawn según nivel
         this.spawnTimer += delta;
         if (this.spawnTimer >= this.spawnInterval && this.enemies.length < this.maxEnemies) {
             this.spawnTimer = 0;

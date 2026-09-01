@@ -1,6 +1,6 @@
 /**
  * AsciiShaderRenderer - Motor de post-procesado 100% por GPU (GLSL Shader)
- * Soporta Corrupción Psíquica visual (ruido espectral y tinte rojo/púrpura) y 60-144 FPS.
+ * Cielo vacío sin caracteres ASCII (espacio negro limpio) y 100% ASCII en geometrías 3D.
  */
 export class AsciiShaderRenderer {
     constructor(threeRenderer, scene, camera, outputCanvas) {
@@ -90,7 +90,6 @@ export class AsciiShaderRenderer {
             uniform float uTime;
             varying vec2 vUv;
 
-            // Función de ruido pseudo-aleatorio
             float rand(vec2 co) {
                 return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
             }
@@ -110,16 +109,17 @@ export class AsciiShaderRenderer {
 
                 float lum = dot(sceneColor.rgb, vec3(0.299, 0.587, 0.114));
 
-                // Efecto de tinte rojo/púrpura y aberración por corrupción psíquica
+                // Si es el cielo (negro/vacío sin geometría), dejarlo como vacío puro sin caracteres ASCII
+                if (lum < 0.038 && uCorruption <= 0.05) {
+                    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                    return;
+                }
+
+                // Efecto de tinte rojo/púrpura por corrupción psíquica
                 if (uCorruption > 0.05) {
                     sceneColor.r += uCorruption * 0.45;
                     sceneColor.b += uCorruption * 0.25;
                     lum = max(lum, uCorruption * 0.35 * rand(cell));
-                }
-
-                if (lum < 0.035) {
-                    gl_FragColor = vec4(0.02, 0.01, 0.04, 1.0);
-                    return;
                 }
 
                 float normalizedLum = pow(clamp(lum, 0.0, 1.0), 0.88);
@@ -150,8 +150,8 @@ export class AsciiShaderRenderer {
                     outColor = vec3(0.1, 1.0, 0.25) * lum * 1.5 * charAlpha;
                 }
 
-                vec3 bg = vec3(0.03, 0.015, 0.05);
-                gl_FragColor = vec4(max(outColor, bg), 1.0);
+                // Fondo limpio: los caracteres resaltan claramente sobre el vacío
+                gl_FragColor = vec4(outColor, 1.0);
             }
         `;
 

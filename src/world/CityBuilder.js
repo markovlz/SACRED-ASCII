@@ -3,7 +3,7 @@ import { ParkTrees } from './ParkTrees.js';
 
 /**
  * CityBuilder - Megaciudad híbrida con fuentes ornamentales, callejones,
- * balcones y Registro de Colisiones Estáticas (Edificios, Rascacielos, Palmeras, Fuente).
+ * balcones, cielo limpio sin caracteres y Registro de Colisiones Estáticas.
  */
 export class CityBuilder {
     constructor(scene) {
@@ -49,7 +49,6 @@ export class CityBuilder {
         for (let i = 0; i < this.colliders.length; i++) {
             const c = this.colliders[i];
             if (c.type === 'box') {
-                // Colisión Círculo vs AABB Box
                 const nearestX = Math.max(c.minX, Math.min(px, c.maxX));
                 const nearestZ = Math.max(c.minZ, Math.min(pz, c.maxZ));
                 const dx = px - nearestX;
@@ -70,14 +69,7 @@ export class CityBuilder {
     }
 
     buildSkyAndAtmosphere() {
-        const skyGeo = new THREE.SphereGeometry(350, 16, 16);
-        const skyMat = new THREE.MeshBasicMaterial({
-            color: 0x1a0626,
-            side: THREE.BackSide
-        });
-        const sky = new THREE.Mesh(skyGeo, skyMat);
-        this.scene.add(sky);
-
+        // Sol retro synthwave en el horizonte
         const sunGeo = new THREE.CircleGeometry(32, 24);
         const sunMat = new THREE.MeshBasicMaterial({
             color: 0xff2875,
@@ -88,7 +80,7 @@ export class CityBuilder {
         sun.rotation.y = -Math.PI / 2;
         this.scene.add(sun);
 
-        const ambientLight = new THREE.AmbientLight(0xdab8ff, 0.85);
+        const ambientLight = new THREE.AmbientLight(0xdab8ff, 0.95);
         this.scene.add(ambientLight);
 
         const sunLight = new THREE.DirectionalLight(0xffb266, 1.4);
@@ -288,7 +280,7 @@ export class CityBuilder {
         const fountain = this.buildWaterFountain();
         fountain.position.set(parkCenterX, 0, 50);
         this.scene.add(fountain);
-        this.addCircleCollider(parkCenterX, 50, 6.6); // Colisión circular de la fuente
+        this.addCircleCollider(parkCenterX, 50, 6.6);
 
         // Senderos peatonales
         const pathMat = new THREE.MeshLambertMaterial({ color: 0x756b5d });
@@ -371,25 +363,25 @@ export class CityBuilder {
         ave.position.set(avenueX, 0.02, 0);
         this.scene.add(ave);
 
-        // 1. EMPIRE STATE BUILDING con colisión
+        // 1. EMPIRE STATE BUILDING
         const empireState = this.buildEmpireStateBuilding();
         empireState.position.set(-155, 0, 0);
         this.scene.add(empireState);
         this.addBoxCollider(-155, 0, 35, 35);
 
-        // 2. CHRYSLER TOWER con colisión
+        // 2. CHRYSLER TOWER
         const chrysler = this.buildChryslerTower();
         chrysler.position.set(-155, 0, -70);
         this.scene.add(chrysler);
         this.addBoxCollider(-155, -70, 29, 29);
 
-        // 3. TIMES SQUARE BILLBOARD TOWER con colisión
+        // 3. TIMES SQUARE BILLBOARD TOWER
         const timesSquare = this.buildTimesSquareTower();
         timesSquare.position.set(-155, 0, 70);
         this.scene.add(timesSquare);
         this.addBoxCollider(-155, 70, 29, 29);
 
-        // 4. Rascacielos adicionales con colisión
+        // 4. Rascacielos adicionales
         const additionalTowers = [
             { x: -190, z: -110, h: 85, w: 30, color: 0x1c1833, neon: 0x00f0ff },
             { x: -190, z: -40, h: 105, w: 32, color: 0x221838, neon: 0xff0077 },

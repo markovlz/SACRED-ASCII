@@ -32,9 +32,10 @@ class Game {
     }
 
     init() {
-        // 1. Escena y Cámara con FOV amplio (84°)
+        // 1. Escena con fondo negro puro (cielo vacío sin caracteres ASCII) y Cámara FOV 84°
         this.scene = new THREE.Scene();
-        this.scene.fog = new THREE.FogExp2(0x1a0626, 0.005);
+        this.scene.background = new THREE.Color(0x000000);
+        this.scene.fog = new THREE.FogExp2(0x000000, 0.0035);
 
         this.camera = new THREE.PerspectiveCamera(
             84,
@@ -107,9 +108,9 @@ class Game {
             return;
         }
 
-        // Si está en pausa, consumir delta para no acumularlo y no actualizar nada
+        // Si está en pausa, consumir delta para no acumularlo
         if (this.hud.isPaused || this.enemySystem.isPlayerDead) {
-            this.clock.getDelta(); // Consumir tiempo transcurrido
+            this.clock.getDelta();
             if (this.hud) this.hud.update(0);
             this.asciiRenderer.render(0);
             return;
