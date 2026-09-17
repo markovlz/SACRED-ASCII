@@ -11,9 +11,11 @@ export class AsciiRenderer {
         this.outputCanvas = outputCanvas;
         this.ctx = outputCanvas.getContext('2d', { alpha: false });
 
-        // Set enriquecido de más de 35 caracteres ASCII graduados por densidad óptica
-        this.asciiRamp = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
-        this.rampLength = this.asciiRamp.length;
+        // Rampa CP437 de bloques para pasto y edificios
+        this.blockRamp = " ░░▒▒▒▓▓██";
+        // Rampa de contorno fino sin bloques para árboles, autos y enemigos
+        this.detailedRamp = " ·:!/+-*#@";
+        this.rampLength = this.blockRamp.length;
 
         // Modos de paleta disponibles
         this.palettes = {
@@ -137,10 +139,15 @@ export class AsciiRenderer {
                 const lum = 0.299 * r + 0.587 * g + 0.114 * b;
 
                 if (lum > 6) { // Si no es negro profundo
-                    // Curva de mapeo no-lineal para distribuir los 35+ caracteres de forma equilibrada
-                    const normalizedLum = Math.pow(lum / 255, 0.85);
+                    const isDetailed = (data[idx + 3] < 180);
+                    let normalizedLum;
+                    if (isDetailed) {
+                        normalizedLum = Math.pow(lum / 255, 0.88);
+                    } else {
+                        normalizedLum = Math.pow(Math.max(0, Math.min(1, (lum / 255 - 0.02) / 0.88)), 0.65);
+                    }
                     const charIdx = Math.min(rampMax, Math.max(0, Math.floor(normalizedLum * this.rampLength)));
-                    const char = this.asciiRamp[charIdx];
+                    const char = isDetailed ? this.detailedRamp[charIdx] : this.blockRamp[charIdx];
 
                     // Cuantización de color (16 niveles por canal) para agrupar por lotes
                     let colorKey;

@@ -6,7 +6,7 @@ export class MusicManager {
     constructor(audioCtx) {
         this.ctx = audioCtx;
         this.isPlaying = false;
-        this.isMuted = false;
+        this.isMuted = true; // Silenciada por defecto a petición del usuario
         this.masterGain = null;
 
         // Tempo lento, pesado y lúgubre
@@ -38,7 +38,7 @@ export class MusicManager {
     init() {
         if (!this.ctx) return;
         this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.setValueAtTime(0.20, this.ctx.currentTime);
+        this.masterGain.gain.setValueAtTime(0.0, this.ctx.currentTime); // Inicia en silencio
         this.masterGain.connect(this.ctx.destination);
     }
 

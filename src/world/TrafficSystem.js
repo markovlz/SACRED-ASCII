@@ -1,3 +1,5 @@
+import { markDetailedMesh } from '../engine/AsciiShaderRenderer.js';
+
 /**
  * TrafficSystem - Simulación de tráfico en Ocean Drive y Manhattan Avenue
  */
@@ -131,6 +133,7 @@ export class TrafficSystem {
         });
 
         carGroup.userData.wheels = wheels;
+        markDetailedMesh(carGroup);
         return carGroup;
     }
 

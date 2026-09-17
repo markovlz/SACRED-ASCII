@@ -132,7 +132,7 @@
                     <div class="key-item"><kbd>P</kbd> <span>Paleta ANSI</span></div>
                 </div>
                 <button id="start-btn" class="glow-button">COMENZAR LA PURGA</button>
-                <p class="audio-notice">🎸 Banda sonora procedural Doom/Terminator Metal 80s activada.</p>
+                <p class="audio-notice">🎸 Música Metal silenciada por defecto. Pulsa [N] para activarla/desactivarla.</p>
             </div>
         </div>
 
@@ -163,6 +163,20 @@
                     <div>Demonios Purificados: <span id="final-kills" class="neon-text-pink">0</span></div>
                 </div>
                 <button id="restart-btn" class="glow-button" style="background: linear-gradient(135deg, #ff0033, #660022);">PURGAR DE NUEVO</button>
+            </div>
+        </div>
+
+        <!-- Pantalla de Victoria (Jefe Final Derrotado a los 75.000 pts) -->
+        <div id="victory-overlay" class="hidden">
+            <div class="modal-card victory-card">
+                <h2 class="victory-title">¡PURGA TOTAL COMPLETADA!</h2>
+                <p class="victory-subtitle">EL SEÑOR DE LAS TINIEBLAS HA SIDO ANIQUILADO</p>
+                <div class="victory-stats">
+                    <div>PUNTAJE SAGRADO: <span id="victory-score" class="neon-text-yellow">0</span></div>
+                    <div>DEMONIOS PURIFICADOS: <span id="victory-kills" class="neon-text-pink">0</span></div>
+                    <div>TIEMPO DE PURGA: <span id="victory-time" class="neon-text-cyan">0m 0s</span></div>
+                </div>
+                <button id="victory-restart-btn" class="glow-button victory-btn">VOLVER A JUGAR</button>
             </div>
         </div>
 

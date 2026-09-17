@@ -288,6 +288,178 @@ export class AudioManager {
         osc.stop(now + 0.08);
     }
 
+    playDeagleShot() {
+        if (!this.ctx || this.isMuted) return;
+        const now = this.ctx.currentTime;
+
+        // Golpe de percusión de alto calibre .50AE
+        const punchOsc = this.ctx.createOscillator();
+        const punchGain = this.ctx.createGain();
+        punchOsc.type = 'sawtooth';
+        punchOsc.frequency.setValueAtTime(190, now);
+        punchOsc.frequency.exponentialRampToValueAtTime(22, now + 0.22);
+
+        punchGain.gain.setValueAtTime(0.55, now);
+        punchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+
+        punchOsc.connect(punchGain);
+        punchGain.connect(this.ctx.destination);
+        punchOsc.start(now);
+        punchOsc.stop(now + 0.25);
+
+        // Eco y detonación metálica de pólvora pesada
+        const bSize = Math.floor(this.ctx.sampleRate * 0.26);
+        const bBuffer = this.ctx.createBuffer(1, bSize, this.ctx.sampleRate);
+        const data = bBuffer.getChannelData(0);
+        for (let i = 0; i < bSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bSize * 0.16));
+        }
+        const nSource = this.ctx.createBufferSource();
+        nSource.buffer = bBuffer;
+
+        const nFilter = this.ctx.createBiquadFilter();
+        nFilter.type = 'bandpass';
+        nFilter.frequency.setValueAtTime(1800, now);
+        nFilter.frequency.exponentialRampToValueAtTime(220, now + 0.24);
+        nFilter.Q.setValueAtTime(1.8, now);
+
+        const nGain = this.ctx.createGain();
+        nGain.gain.setValueAtTime(0.65, now);
+        nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+        nSource.connect(nFilter);
+        nFilter.connect(nGain);
+        nGain.connect(this.ctx.destination);
+        nSource.start(now);
+    }
+
+    playM16Shot() {
+        if (!this.ctx || this.isMuted) return;
+        const now = this.ctx.currentTime;
+
+        // Chasquido táctico y estruendo de proyectil militar 5.56mm
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(320 + Math.random() * 40, now);
+        osc.frequency.exponentialRampToValueAtTime(45, now + 0.08);
+
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.1);
+
+        const bSize = Math.floor(this.ctx.sampleRate * 0.12);
+        const bBuffer = this.ctx.createBuffer(1, bSize, this.ctx.sampleRate);
+        const data = bBuffer.getChannelData(0);
+        for (let i = 0; i < bSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bSize * 0.1));
+        }
+        const nSource = this.ctx.createBufferSource();
+        nSource.buffer = bBuffer;
+
+        const nFilter = this.ctx.createBiquadFilter();
+        nFilter.type = 'lowpass';
+        nFilter.frequency.setValueAtTime(4200, now);
+        nFilter.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+
+        const nGain = this.ctx.createGain();
+        nGain.gain.setValueAtTime(0.38, now);
+        nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+
+        nSource.connect(nFilter);
+        nFilter.connect(nGain);
+        nGain.connect(this.ctx.destination);
+        nSource.start(now);
+    }
+
+    /* --- QUEJIDO / GRUÑIDO DE DOLOR DEL JUGADOR (SINTETIZADO PROCEDURAL) --- */
+    playPlayerHurt() {
+        if (!this.ctx || this.isMuted) return;
+        const now = this.ctx.currentTime;
+
+        // Exhalación gutural grave del impacto
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(140 + Math.random() * 25, now);
+        osc.frequency.exponentialRampToValueAtTime(48, now + 0.22);
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(420, now);
+        filter.frequency.exponentialRampToValueAtTime(160, now + 0.22);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.35, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.28);
+
+        // Ruido sordo del golpe en carne/armadura
+        const bSize = Math.floor(this.ctx.sampleRate * 0.15);
+        const bBuffer = this.ctx.createBuffer(1, bSize, this.ctx.sampleRate);
+        const data = bBuffer.getChannelData(0);
+        for (let i = 0; i < bSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bSize * 0.18));
+        }
+        const nSource = this.ctx.createBufferSource();
+        nSource.buffer = bBuffer;
+
+        const nFilter = this.ctx.createBiquadFilter();
+        nFilter.type = 'bandpass';
+        nFilter.frequency.setValueAtTime(320, now);
+        nFilter.Q.setValueAtTime(1.4, now);
+
+        const nGain = this.ctx.createGain();
+        nGain.gain.setValueAtTime(0.24, now);
+        nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+        nSource.connect(nFilter);
+        nFilter.connect(nGain);
+        nGain.connect(this.ctx.destination);
+        nSource.start(now);
+    }
+
+    /* --- FANFARRIA DE VICTORIA AL ELIMINAR AL JEFE FINAL --- */
+    playVictory() {
+        if (!this.ctx || this.isMuted) return;
+        const now = this.ctx.currentTime;
+        const notes = [
+            { f: 261.63, t: 0.0, d: 0.25 }, // C4
+            { f: 329.63, t: 0.22, d: 0.25 }, // E4
+            { f: 392.00, t: 0.44, d: 0.25 }, // G4
+            { f: 523.25, t: 0.66, d: 0.35 }, // C5
+            { f: 440.00, t: 1.05, d: 0.25 }, // A4
+            { f: 523.25, t: 1.30, d: 0.25 }, // C5
+            { f: 659.25, t: 1.55, d: 0.70 }  // E5
+        ];
+
+        notes.forEach(n => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(n.f, now + n.t);
+
+            gain.gain.setValueAtTime(0.001, now + n.t);
+            gain.gain.linearRampToValueAtTime(0.22, now + n.t + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + n.t + n.d);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + n.t);
+            osc.stop(now + n.t + n.d + 0.05);
+        });
+    }
+
     playBossRoar() {
         if (!this.ctx || this.isMuted) return;
         const now = this.ctx.currentTime;

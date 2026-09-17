@@ -1,3 +1,5 @@
+import { markDetailedMesh } from '../engine/AsciiShaderRenderer.js';
+
 /**
  * EnemySystem - Sistema de Niveles de Amenaza, Jefes cada 5.000 pts y Gárgolas de Alto Contraste
  */
@@ -29,6 +31,13 @@ export class EnemySystem {
         this.bossTier = 1;
         this.activeBoss = null;
 
+        // Jefe Final a los 75.000 puntos y Victoria
+        this.finalBossScore = 75000;
+        this.finalBossSpawned = false;
+        this.finalBossActive = false;
+        this.isVictory = false;
+
+        this.lastHurtSoundTime = 0;
         this.psychicIntensity = 0.0;
         this.particles = [];
 
@@ -98,6 +107,7 @@ export class EnemySystem {
         e2.position.set(0.16, 2.15, 0.31);
         group.add(e2);
 
+        markDetailedMesh(group);
         this.scene.add(group);
 
         const speedBonus = (this.currentLevel - 1) * 0.4;
@@ -149,6 +159,7 @@ export class EnemySystem {
         e2.position.set(0.25, 3.2, 0.46);
         group.add(e2);
 
+        markDetailedMesh(group);
         this.scene.add(group);
 
         const speedBonus = (this.currentLevel - 1) * 0.35;
@@ -217,6 +228,7 @@ export class EnemySystem {
         group.userData.leftWing = leftWing;
         group.userData.rightWing = rightWing;
 
+        markDetailedMesh(group);
         this.scene.add(group);
 
         const speedBonus = (this.currentLevel - 1) * 0.45;
@@ -273,6 +285,7 @@ export class EnemySystem {
             group.add(h);
         }
 
+        markDetailedMesh(group);
         this.scene.add(group);
 
         const bossHp = 650 + (this.bossTier - 1) * 300;
@@ -294,6 +307,99 @@ export class EnemySystem {
 
         this.enemies.push(bossObj);
         this.activeBoss = bossObj;
+        this.audioManager.playBossRoar();
+    }
+
+    /* --- JEFE FINAL A LOS 75.000 PUNTOS (LEVIATÁN SUPREMO) --- */
+    spawnFinalBoss(x, z) {
+        const group = new THREE.Group();
+        group.position.set(x, 0, z);
+
+        const obsidianMat = new THREE.MeshLambertMaterial({ color: 0x140822, flatShading: true });
+        const crimsonMat = new THREE.MeshLambertMaterial({ color: 0x880022, flatShading: true });
+        const lavaMat = new THREE.MeshBasicMaterial({ color: 0xff1100 });
+        const goldEyeMat = new THREE.MeshBasicMaterial({ color: 0xffea00 });
+        const darkWingMat = new THREE.MeshLambertMaterial({ color: 0x330044, side: THREE.DoubleSide });
+
+        // Torso titánico colosal
+        const torso = new THREE.Mesh(new THREE.BoxGeometry(4.2, 4.8, 2.2), obsidianMat);
+        torso.position.y = 4.2;
+        group.add(torso);
+
+        // Armadura de pecho carmesí
+        const chest = new THREE.Mesh(new THREE.BoxGeometry(4.4, 2.2, 2.4), crimsonMat);
+        chest.position.set(0, 4.6, 0);
+        group.add(chest);
+
+        // Núcleo de lava ardiente pulsante
+        const core = new THREE.Mesh(new THREE.BoxGeometry(2.0, 2.0, 2.5), lavaMat);
+        core.position.set(0, 4.6, 0);
+        group.add(core);
+
+        // Cabeza demoníaca gigante
+        const head = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.2, 2.2), obsidianMat);
+        head.position.y = 7.6;
+        group.add(head);
+
+        // Ojos de oro infernal
+        const e1 = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.25, 0.15), goldEyeMat);
+        e1.position.set(-0.55, 7.8, 1.15);
+        group.add(e1);
+        const e2 = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.25, 0.15), goldEyeMat);
+        e2.position.set(0.55, 7.8, 1.15);
+        group.add(e2);
+
+        // Corona de 8 cuernos de magma
+        for (let i = -4; i <= 4; i++) {
+            if (i === 0) continue;
+            const h = new THREE.Mesh(new THREE.ConeGeometry(0.28, 1.8, 6), lavaMat);
+            h.position.set(i * 0.42, 9.1, 0);
+            h.rotation.z = -i * 0.22;
+            group.add(h);
+        }
+
+        // Alas demoníacas gigantescas
+        const wingGeo = new THREE.PlaneGeometry(6.5, 3.8);
+        const leftWing = new THREE.Mesh(wingGeo, darkWingMat);
+        leftWing.position.set(-4.2, 5.0, -0.6);
+        leftWing.rotation.y = 0.4;
+        group.add(leftWing);
+
+        const rightWing = new THREE.Mesh(wingGeo, darkWingMat);
+        rightWing.position.set(4.2, 5.0, -0.6);
+        rightWing.rotation.y = -0.4;
+        group.add(rightWing);
+
+        group.userData.leftWing = leftWing;
+        group.userData.rightWing = rightWing;
+
+        markDetailedMesh(group);
+        this.scene.add(group);
+
+        const bossObj = {
+            mesh: group,
+            type: 'boss',
+            isFinalBoss: true,
+            name: 'LEVIATÁN SUPREMO - SEÑOR DE LAS TINIEBLAS [JEFE FINAL]',
+            hp: 4000,
+            maxHp: 4000,
+            speed: 7.2,
+            hitRadius: 4.5,
+            centerY: 4.5,
+            halfHeight: 5.0,
+            isAlive: true,
+            materials: [obsidianMat, crimsonMat, lavaMat],
+            takeDamage: (dmg) => this.damageEnemy(bossObj, dmg)
+        };
+
+        if (this.activeBoss && this.activeBoss !== bossObj && this.activeBoss.isAlive) {
+            this.scene.remove(this.activeBoss.mesh);
+            this.activeBoss.isAlive = false;
+        }
+
+        this.enemies.push(bossObj);
+        this.activeBoss = bossObj;
+        this.finalBossActive = true;
         this.audioManager.playBossRoar();
     }
 
@@ -323,7 +429,15 @@ export class EnemySystem {
 
         this.demonsPurged++;
 
-        if (enemy.type === 'boss') {
+        if (enemy.isFinalBoss) {
+            this.score += 50000;
+            this.activeBoss = null;
+            this.finalBossActive = false;
+            this.isVictory = true;
+            this.audioManager.playVictory();
+            this.createDisintegrationParticles(enemy.mesh.position, 0xffea00, 50);
+            this.createDisintegrationParticles(enemy.mesh.position, 0xff0055, 50);
+        } else if (enemy.type === 'boss') {
             this.score += 2500;
             this.activeBoss = null;
             this.createDisintegrationParticles(enemy.mesh.position, 0xff00ff, 28);
@@ -373,7 +487,14 @@ export class EnemySystem {
         const playerPos = this.camera.position;
         let maxCorruptionProximity = 0;
 
-        if (this.score >= this.nextBossScore && !this.activeBoss) {
+        // Despertar del Jefe Final a los 75.000 puntos
+        if (this.score >= this.finalBossScore && !this.finalBossSpawned) {
+            this.finalBossSpawned = true;
+            const angle = Math.random() * Math.PI * 2;
+            const bx = playerPos.x + Math.cos(angle) * 45;
+            const bz = playerPos.z + Math.sin(angle) * 45;
+            this.spawnFinalBoss(bx, bz);
+        } else if (this.score >= this.nextBossScore && !this.activeBoss && !this.finalBossActive) {
             this.nextBossScore += 5000;
             this.bossTier++;
             const angle = Math.random() * Math.PI * 2;
@@ -388,16 +509,23 @@ export class EnemySystem {
             const dist = enemy.mesh.position.distanceTo(playerPos);
             enemy.mesh.lookAt(playerPos.x, enemy.mesh.position.y, playerPos.z);
 
+            if (enemy.isFinalBoss) {
+                enemy.flyTimer = (enemy.flyTimer || 0) + delta * 2.2;
+                const wingSway = Math.sin(enemy.flyTimer * 4.0) * 0.35;
+                if (enemy.mesh.userData.leftWing) enemy.mesh.userData.leftWing.rotation.y = 0.4 + wingSway;
+                if (enemy.mesh.userData.rightWing) enemy.mesh.userData.rightWing.rotation.y = -0.4 - wingSway;
+            }
+
             if (enemy.type === 'ground' || enemy.type === 'elite' || enemy.type === 'boss') {
                 const dir = playerPos.clone().sub(enemy.mesh.position).normalize();
                 dir.y = 0;
                 enemy.mesh.position.add(dir.multiplyScalar(enemy.speed * delta));
 
-                const auraRange = enemy.type === 'boss' ? 14.0 : 9.0;
+                const auraRange = enemy.isFinalBoss ? 18.0 : (enemy.type === 'boss' ? 14.0 : 9.0);
                 if (dist < auraRange) {
                     const corr = (1.0 - (dist / auraRange));
                     maxCorruptionProximity = Math.max(maxCorruptionProximity, corr);
-                    const drainRate = enemy.type === 'boss' ? 24 : 14;
+                    const drainRate = enemy.isFinalBoss ? 32 : (enemy.type === 'boss' ? 24 : 14);
                     this.playerHealth = Math.max(0, this.playerHealth - delta * drainRate * corr);
                 }
             } else if (enemy.type === 'flying') {
@@ -417,6 +545,15 @@ export class EnemySystem {
             }
         });
 
+        // Quejido/gruñido de dolor del jugador si sufre daño activo
+        if (maxCorruptionProximity > 0.08) {
+            const nowSec = performance.now() / 1000;
+            if (nowSec - this.lastHurtSoundTime > 0.45) {
+                this.lastHurtSoundTime = nowSec;
+                this.audioManager.playPlayerHurt();
+            }
+        }
+
         this.psychicIntensity = maxCorruptionProximity;
         this.audioManager.setPsychicIntensity(this.psychicIntensity);
 
@@ -435,6 +572,11 @@ export class EnemySystem {
                 this.scene.remove(pt.mesh);
                 this.particles.splice(pIdx, 1);
             }
+        }
+
+        // Mientras el Jefe Final esté en combate, los demás demonios NO continúan spawneando
+        if (this.finalBossActive) {
+            return;
         }
 
         this.spawnTimer += delta;

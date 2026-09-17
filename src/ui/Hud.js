@@ -45,17 +45,23 @@ export class Hud {
         // Modales
         this.pauseOverlay = document.getElementById('pause-overlay');
         this.gameoverOverlay = document.getElementById('gameover-overlay');
+        this.victoryOverlay = document.getElementById('victory-overlay');
         this.resumeBtn = document.getElementById('resume-btn');
         this.restartBtnPause = document.getElementById('restart-btn-pause');
         this.restartBtn = document.getElementById('restart-btn');
+        this.victoryRestartBtn = document.getElementById('victory-restart-btn');
         this.pauseScore = document.getElementById('pause-score');
         this.pauseLevel = document.getElementById('pause-level');
         this.pauseKills = document.getElementById('pause-kills');
         this.finalScore = document.getElementById('final-score');
         this.finalLevel = document.getElementById('final-level');
         this.finalKills = document.getElementById('final-kills');
+        this.victoryScore = document.getElementById('victory-score');
+        this.victoryKills = document.getElementById('victory-kills');
+        this.victoryTime = document.getElementById('victory-time');
 
         this.isPaused = false;
+        this.totalPlaySeconds = 0;
         this.gameHour = 18;
         this.gameMinute = 45;
         this.timeTickTimer = 0;
@@ -91,6 +97,9 @@ export class Hud {
         }
         if (this.restartBtn) {
             this.restartBtn.addEventListener('click', () => location.reload());
+        }
+        if (this.victoryRestartBtn) {
+            this.victoryRestartBtn.addEventListener('click', () => location.reload());
         }
     }
 
@@ -183,12 +192,15 @@ export class Hud {
             this.threatLevel.textContent = `NIVEL ${this.enemySystem.currentLevel}`;
         }
 
-        // 4. Slots y Armas
+        // 4. Slots y Armas (Actualización Dinámica de Badges)
         if (this.slot1Badge && this.slot2Badge && this.slot3Badge) {
             this.slot1Badge.classList.toggle('active', this.weaponSystem.activeSlot === 1 && !this.weaponSystem.uziFrenzyActive);
             this.slot2Badge.classList.toggle('active', this.weaponSystem.activeSlot === 2 && !this.weaponSystem.uziFrenzyActive);
             this.slot3Badge.classList.toggle('active', this.weaponSystem.activeSlot === 3 && !this.weaponSystem.uziFrenzyActive);
             this.slot3Badge.classList.toggle('locked', !this.weaponSystem.hasMinigun);
+
+            this.slot1Badge.innerHTML = this.weaponSystem.slot1Weapon === 'm16' ? '<kbd>1</kbd> COLT M16' : '<kbd>1</kbd> ESCOPETA';
+            this.slot2Badge.innerHTML = this.weaponSystem.slot2Weapon === 'deagle' ? '<kbd>2</kbd> D.EAGLE .50' : '<kbd>2</kbd> REVÓLVER';
             if (this.weaponSystem.hasMinigun) {
                 this.slot3Badge.innerHTML = '<kbd>3</kbd> MINIGUN';
             }
@@ -207,32 +219,38 @@ export class Hud {
             const pct = (this.weaponSystem.uziFrenzyTimer / this.weaponSystem.uziFrenzyMaxDuration) * 100;
             this.frenzyBar.style.width = `${pct}%`;
         } else if (this.weaponSystem.activeSlot === 1) {
-            this.weaponName.textContent = 'ESCOPETA SAGRADA';
-            this.weaponName.style.color = '#ffdd44';
-            this.ammoMag.textContent = this.weaponSystem.weapons.shotgun.mag;
-            this.ammoReserve.textContent = this.weaponSystem.weapons.shotgun.reserve;
+            const isM16 = this.weaponSystem.slot1Weapon === 'm16';
+            const w = this.weaponSystem.weapons[this.weaponSystem.slot1Weapon] || this.weaponSystem.weapons.shotgun;
+
+            this.weaponName.textContent = w.name;
+            this.weaponName.style.color = isM16 ? '#00f0ff' : '#ffdd44';
+            this.ammoMag.textContent = w.mag;
+            this.ammoReserve.textContent = w.reserve;
             this.frenzyContainer.classList.add('hidden');
 
             if (this.weaponSystem.isReloading) {
-                this.reloadPrompt.textContent = 'BOMBEANDO...';
+                this.reloadPrompt.textContent = isM16 ? 'RECARGANDO...' : 'BOMBEANDO...';
                 this.reloadPrompt.classList.remove('hidden');
-            } else if (this.weaponSystem.weapons.shotgun.mag === 0) {
+            } else if (w.mag === 0) {
                 this.reloadPrompt.textContent = '[R] RECARGAR';
                 this.reloadPrompt.classList.remove('hidden');
             } else {
                 this.reloadPrompt.classList.add('hidden');
             }
         } else if (this.weaponSystem.activeSlot === 2) {
-            this.weaponName.textContent = 'REVÓLVER .357 CROMADO';
-            this.weaponName.style.color = '#ffffff';
-            this.ammoMag.textContent = this.weaponSystem.weapons.revolver.mag;
-            this.ammoReserve.textContent = this.weaponSystem.weapons.revolver.reserve;
+            const isDeagle = this.weaponSystem.slot2Weapon === 'deagle';
+            const w = this.weaponSystem.weapons[this.weaponSystem.slot2Weapon] || this.weaponSystem.weapons.revolver;
+
+            this.weaponName.textContent = w.name;
+            this.weaponName.style.color = isDeagle ? '#ffe600' : '#ffffff';
+            this.ammoMag.textContent = w.mag;
+            this.ammoReserve.textContent = w.reserve;
             this.frenzyContainer.classList.add('hidden');
 
             if (this.weaponSystem.isReloading) {
                 this.reloadPrompt.textContent = 'RECARGANDO...';
                 this.reloadPrompt.classList.remove('hidden');
-            } else if (this.weaponSystem.weapons.revolver.mag === 0) {
+            } else if (w.mag === 0) {
                 this.reloadPrompt.textContent = '[R] RECARGAR';
                 this.reloadPrompt.classList.remove('hidden');
             } else {
@@ -258,6 +276,21 @@ export class Hud {
             this.bossBarContainer.classList.remove('hidden');
             const boss = this.enemySystem.activeBoss;
             this.bossName.textContent = boss.name;
+            if (boss.isFinalBoss) {
+                this.bossBarContainer.style.borderColor = '#ff1100';
+                this.bossBarContainer.style.boxShadow = '0 0 38px rgba(255, 17, 0, 0.95)';
+                this.bossName.style.color = '#ffdd00';
+                this.bossName.style.textShadow = '0 0 10px #ff1100, 0 0 20px #ffaa00';
+                this.bossFill.style.background = 'linear-gradient(90deg, #ff0033, #ff4400, #ffea00)';
+                this.bossHpVal.style.color = '#ffea00';
+            } else {
+                this.bossBarContainer.style.borderColor = '#ff0077';
+                this.bossBarContainer.style.boxShadow = '0 0 30px rgba(255, 0, 119, 0.8)';
+                this.bossName.style.color = '#ff0077';
+                this.bossName.style.textShadow = '0 0 8px #ff0077';
+                this.bossFill.style.background = 'linear-gradient(90deg, #ff0077, #ffcc00)';
+                this.bossHpVal.style.color = '#ffffff';
+            }
             const bossHpPct = Math.max(0, (boss.hp / boss.maxHp) * 100);
             this.bossFill.style.width = `${bossHpPct}%`;
             this.bossHpVal.textContent = `${Math.max(0, Math.round(boss.hp))} / ${boss.maxHp} HP`;
@@ -272,7 +305,22 @@ export class Hud {
             this.psychicWarning.classList.add('hidden');
         }
 
-        // 8. Game Over
+        // 8. Pantalla de Victoria (Jefe Final derrotado)
+        if (this.enemySystem.isVictory && this.victoryOverlay && !this.victoryOverlay.classList.contains('active')) {
+            this.audioManager.pauseMusic();
+            document.exitPointerLock();
+            this.victoryOverlay.classList.remove('hidden');
+            this.victoryOverlay.classList.add('active');
+            if (this.victoryScore) this.victoryScore.textContent = this.enemySystem.score;
+            if (this.victoryKills) this.victoryKills.textContent = this.enemySystem.demonsPurged;
+            if (this.victoryTime) {
+                const mins = Math.floor(this.totalPlaySeconds / 60);
+                const secs = Math.floor(this.totalPlaySeconds % 60);
+                this.victoryTime.textContent = `${mins}m ${secs}s`;
+            }
+        }
+
+        // 9. Game Over
         if (this.enemySystem.isPlayerDead && !this.gameoverOverlay.classList.contains('active')) {
             this.audioManager.pauseMusic();
             document.exitPointerLock();
@@ -282,6 +330,8 @@ export class Hud {
             if (this.finalLevel) this.finalLevel.textContent = this.enemySystem.currentLevel;
             this.finalKills.textContent = this.enemySystem.demonsPurged;
         }
+
+        this.totalPlaySeconds += delta;
 
         // 9. FPS
         this.frameCount++;

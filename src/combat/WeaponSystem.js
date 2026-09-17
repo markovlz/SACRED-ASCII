@@ -1,3 +1,5 @@
+import { markDetailedMesh } from '../engine/AsciiShaderRenderer.js';
+
 /**
  * WeaponSystem - 3 slots, Uzi Frenesí 5s cada 1.000 pts, Minigun a 10.000 pts en la fuente,
  * y Spawns extendidos de munición y botiquines en todo el mapa.
@@ -8,8 +10,10 @@ export class WeaponSystem {
         this.camera = camera;
         this.audioManager = audioManager;
 
-        // Slots
-        this.activeSlot = 2; // Revólver
+        // Slots y Armas Equipadas
+        this.activeSlot = 2; // Slot Activo (1: Primaria, 2: Secundaria, 3: Minigun)
+        this.slot1Weapon = 'shotgun'; // 'shotgun' o 'm16'
+        this.slot2Weapon = 'revolver'; // 'revolver' o 'deagle'
         this.hasMinigun = false;
 
         this.weapons = {
@@ -19,9 +23,18 @@ export class WeaponSystem {
                 maxMag: 2,
                 reserve: 14,
                 cooldown: 0.62,
-                damagePerPellet: 15,
+                damagePerPellet: 14,
                 pellets: 7,
                 isAuto: false
+            },
+            m16: {
+                name: 'COLT M16 MILITAR',
+                mag: 30,
+                maxMag: 30,
+                reserve: 120,
+                cooldown: 0.10,
+                damage: 23,
+                isAuto: true
             },
             revolver: {
                 name: 'REVÓLVER .357 CROMADO',
@@ -32,13 +45,22 @@ export class WeaponSystem {
                 damage: 38,
                 isAuto: false
             },
+            deagle: {
+                name: 'DESERT EAGLE .50AE',
+                mag: 7,
+                maxMag: 7,
+                reserve: 35,
+                cooldown: 0.30,
+                damage: 75,
+                isAuto: false
+            },
             minigun: {
                 name: 'MINIGUN VULCAN SAGRADA',
                 mag: 150,
                 maxMag: 150,
                 reserve: 150,
                 cooldown: 0.065,
-                damage: 28,
+                damage: 26,
                 isAuto: true
             },
             uzi: {
@@ -47,7 +69,7 @@ export class WeaponSystem {
                 maxMag: Infinity,
                 reserve: Infinity,
                 cooldown: 0.07,
-                damage: 18,
+                damage: 16,
                 isAuto: true
             }
         };
@@ -62,28 +84,41 @@ export class WeaponSystem {
         // Frenesí Uzi: 5 segundos cada 1.000 puntos
         this.uziFrenzyActive = false;
         this.uziFrenzyTimer = 0;
-        this.uziFrenzyMaxDuration = 5.0;
-        this.nextFrenzyScore = 1000;
+        this.uziFrenzyMaxDuration = 3.0;
+        this.nextFrenzyScore = 1500;
 
         this.projectiles = [];
         this.ammoPickups = [];
         this.medkitPickups = [];
+        this.allAuras = [];
         this.pickupSpawnTimer = 0;
 
+        // Pedestales de armas
         this.minigunPedestal = null;
         this.minigunSpawned = false;
+
+        this.centerArsenalSpawned = false;
+        this.centerDeaglePedestal = null;
+        this.centerM16Pedestal = null;
+
+        this.beachShotgunPedestal = null;
+        this.beachRevolverPedestal = null;
 
         this.gunContainer = new THREE.Group();
         this.camera.add(this.gunContainer);
         this.scene.add(this.camera);
 
         this.shotgunModel = this.buildShotgunModel();
+        this.m16Model = this.buildM16Model();
         this.revolverModel = this.buildRevolverModel();
+        this.deagleModel = this.buildDeagleModel();
         this.minigunModel = this.buildMinigunModel();
         this.uziModel = this.buildUziModel();
 
         this.gunContainer.add(this.shotgunModel);
+        this.gunContainer.add(this.m16Model);
         this.gunContainer.add(this.revolverModel);
+        this.gunContainer.add(this.deagleModel);
         this.gunContainer.add(this.minigunModel);
         this.gunContainer.add(this.uziModel);
 
@@ -95,6 +130,7 @@ export class WeaponSystem {
 
         this.initControls();
         this.spawnInitialPickups();
+        this.spawnBeachWeaponStations();
     }
 
     initControls() {
@@ -155,24 +191,34 @@ export class WeaponSystem {
 
     getCurrentWeapon() {
         if (this.uziFrenzyActive) return this.weapons.uzi;
-        if (this.activeSlot === 1) return this.weapons.shotgun;
-        if (this.activeSlot === 2) return this.weapons.revolver;
+        if (this.activeSlot === 1) return this.weapons[this.slot1Weapon] || this.weapons.shotgun;
+        if (this.activeSlot === 2) return this.weapons[this.slot2Weapon] || this.weapons.revolver;
         if (this.activeSlot === 3) return this.weapons.minigun;
-        return this.weapons.revolver;
+        return this.weapons[this.slot2Weapon] || this.weapons.revolver;
     }
 
     updateVisibleModel() {
         this.shotgunModel.visible = false;
+        this.m16Model.visible = false;
         this.revolverModel.visible = false;
+        this.deagleModel.visible = false;
         this.minigunModel.visible = false;
         this.uziModel.visible = false;
 
         if (this.uziFrenzyActive) {
             this.uziModel.visible = true;
         } else if (this.activeSlot === 1) {
-            this.shotgunModel.visible = true;
+            if (this.slot1Weapon === 'm16') {
+                this.m16Model.visible = true;
+            } else {
+                this.shotgunModel.visible = true;
+            }
         } else if (this.activeSlot === 2) {
-            this.revolverModel.visible = true;
+            if (this.slot2Weapon === 'deagle') {
+                this.deagleModel.visible = true;
+            } else {
+                this.revolverModel.visible = true;
+            }
         } else if (this.activeSlot === 3) {
             this.minigunModel.visible = true;
         }
@@ -324,6 +370,156 @@ export class WeaponSystem {
         return group;
     }
 
+    buildDeagleModel() {
+        const group = new THREE.Group();
+        group.position.set(0.32, -0.28, -0.65);
+
+        const chromeSlideMat = new THREE.MeshLambertMaterial({ color: 0xd8d8e2, flatShading: true });
+        const blackFrameMat = new THREE.MeshLambertMaterial({ color: 0x1e1e24, flatShading: true });
+        const gripMat = new THREE.MeshLambertMaterial({ color: 0x141418 });
+
+        // Corredera superior masiva y poligonal característica de la Desert Eagle
+        const slide = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.09, 0.44), chromeSlideMat);
+        slide.position.set(0, 0.05, -0.19);
+        group.add(slide);
+
+        // Cañón interno y boca estriada de alto calibre .50AE
+        const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.12, 8), blackFrameMat);
+        muzzle.rotation.x = Math.PI / 2;
+        muzzle.position.set(0, 0.05, -0.42);
+        group.add(muzzle);
+
+        // Alza y mira delantera de combate
+        const frontSight = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.025, 0.03), blackFrameMat);
+        frontSight.position.set(0, 0.10, -0.38);
+        group.add(frontSight);
+
+        const rearSight = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 0.03), blackFrameMat);
+        rearSight.position.set(0, 0.10, 0.01);
+        group.add(rearSight);
+
+        // Armazón inferior
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(0.076, 0.07, 0.28), blackFrameMat);
+        frame.position.set(0, -0.01, -0.10);
+        group.add(frame);
+
+        // Empuñadura táctica ergonómica con relieve
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.068, 0.20, 0.10), gripMat);
+        grip.position.set(0, -0.11, 0.06);
+        grip.rotation.x = 0.38;
+        group.add(grip);
+
+        // Martillo percutor posterior
+        const hammer = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.04, 0.04), blackFrameMat);
+        hammer.position.set(0, 0.07, 0.04);
+        hammer.rotation.x = -0.3;
+        group.add(hammer);
+
+        // Destello de disparo .50AE (dorado cegador)
+        const flashMat = new THREE.MeshBasicMaterial({ color: 0xffea00, transparent: true, opacity: 0 });
+        const flash = new THREE.Mesh(new THREE.SphereGeometry(0.14, 6, 6), flashMat);
+        flash.position.set(0, 0.05, -0.48);
+        group.add(flash);
+        group.userData.flash = flash;
+
+        return group;
+    }
+
+    buildM16Model() {
+        const group = new THREE.Group();
+        group.position.set(0.30, -0.28, -0.70);
+
+        const gunmetalMat = new THREE.MeshLambertMaterial({ color: 0x24262b, flatShading: true });
+        const darkPolymerMat = new THREE.MeshLambertMaterial({ color: 0x18191c });
+
+        // Cajón de mecanismos (Upper & Lower Receiver)
+        const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.13, 0.38), gunmetalMat);
+        receiver.position.set(0, 0.02, -0.05);
+        group.add(receiver);
+
+        // Asa de transporte superior clásica M16 (Carry Handle & Iron Sight)
+        const carryHandleBase = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.06, 0.18), gunmetalMat);
+        carryHandleBase.position.set(0, 0.11, -0.05);
+        group.add(carryHandleBase);
+
+        // Guardamanos estriado característico
+        const handguard = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.048, 0.38, 8), darkPolymerMat);
+        handguard.rotation.x = Math.PI / 2;
+        handguard.position.set(0, 0.03, -0.40);
+        group.add(handguard);
+
+        // Cañón largo de fusil de asalto
+        const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.55, 6), gunmetalMat);
+        barrel.rotation.x = Math.PI / 2;
+        barrel.position.set(0, 0.03, -0.58);
+        group.add(barrel);
+
+        // Mira frontal triangular en A (Front Sight Base)
+        const frontSight = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.10, 4), gunmetalMat);
+        frontSight.position.set(0, 0.09, -0.62);
+        group.add(frontSight);
+
+        // Bocacha apagallamas A2
+        const compensator = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.06, 6), gunmetalMat);
+        compensator.rotation.x = Math.PI / 2;
+        compensator.position.set(0, 0.03, -0.87);
+        group.add(compensator);
+
+        // Cargador STANAG curvo de 30 balas
+        const mag = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.22, 0.08), gunmetalMat);
+        mag.position.set(0, -0.12, -0.12);
+        mag.rotation.x = 0.22;
+        group.add(mag);
+
+        // Culata fija trasera sólida
+        const stock = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.15, 0.30), darkPolymerMat);
+        stock.position.set(0, -0.01, 0.26);
+        group.add(stock);
+
+        // Empuñadura de pistola (Pistol Grip)
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.07), darkPolymerMat);
+        grip.position.set(0, -0.11, 0.08);
+        grip.rotation.x = 0.42;
+        group.add(grip);
+
+        // Destello de boca M16 (naranja de alta velocidad)
+        const flashMat = new THREE.MeshBasicMaterial({ color: 0xffbb22, transparent: true, opacity: 0 });
+        const flash = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 6), flashMat);
+        flash.position.set(0, 0.03, -0.92);
+        group.add(flash);
+        group.userData.flash = flash;
+
+        return group;
+    }
+
+    /* --- SISTEMA DE AURAS LUMINOSAS PARA OBJETOS DEL SUELO --- */
+    createAura(colorHex, height = 3.6, radius = 0.55) {
+        const auraGroup = new THREE.Group();
+
+        // Columna cilíndrica de luz vertical suave, sin aros negros y con opacidad atenuada
+        const beamGeo = new THREE.CylinderGeometry(radius * 0.45, radius * 1.05, height, 10, 1, true);
+        const beamMat = new THREE.MeshBasicMaterial({
+            color: colorHex,
+            transparent: true,
+            opacity: 0.20,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        const beam = new THREE.Mesh(beamGeo, beamMat);
+        beam.position.y = height / 2;
+        auraGroup.add(beam);
+
+        const auraData = {
+            group: auraGroup,
+            beam: beam,
+            baseOpacity: 0.20,
+            time: Math.random() * Math.PI * 2
+        };
+        this.allAuras.push(auraData);
+
+        return auraGroup;
+    }
+
     activateUziFrenzy() {
         this.uziFrenzyActive = true;
         this.uziFrenzyTimer = this.uziFrenzyMaxDuration;
@@ -351,34 +547,51 @@ export class WeaponSystem {
         }
 
         if (this.activeSlot === 1) {
-            if (this.weapons.shotgun.mag <= 0) {
+            const w = this.weapons[this.slot1Weapon] || this.weapons.shotgun;
+            if (w.mag <= 0) {
                 this.reload();
                 return;
             }
-            this.weapons.shotgun.mag--;
+            w.mag--;
             this.lastShotTime = now;
-            this.audioManager.playShotgunShot();
 
-            this.recoilOffset = 0.12;
-            this.recoilRot = 0.35;
-            this.triggerFlash(this.shotgunModel);
-
-            for (let i = 0; i < this.weapons.shotgun.pellets; i++) {
-                this.createSpreadPellet(this.weapons.shotgun.damagePerPellet);
+            if (this.slot1Weapon === 'm16') {
+                this.audioManager.playM16Shot();
+                this.recoilOffset = 0.045;
+                this.recoilRot = 0.08;
+                this.triggerFlash(this.m16Model);
+                this.createSingleProjectile('m16', w.damage);
+            } else {
+                this.audioManager.playShotgunShot();
+                this.recoilOffset = 0.12;
+                this.recoilRot = 0.35;
+                this.triggerFlash(this.shotgunModel);
+                for (let i = 0; i < w.pellets; i++) {
+                    this.createSpreadPellet(w.damagePerPellet);
+                }
             }
         } else if (this.activeSlot === 2) {
-            if (this.weapons.revolver.mag <= 0) {
+            const w = this.weapons[this.slot2Weapon] || this.weapons.revolver;
+            if (w.mag <= 0) {
                 this.reload();
                 return;
             }
-            this.weapons.revolver.mag--;
+            w.mag--;
             this.lastShotTime = now;
-            this.audioManager.playRevolverShot();
 
-            this.recoilOffset = 0.08;
-            this.recoilRot = 0.25;
-            this.triggerFlash(this.revolverModel);
-            this.createSingleProjectile('holy', this.weapons.revolver.damage);
+            if (this.slot2Weapon === 'deagle') {
+                this.audioManager.playDeagleShot();
+                this.recoilOffset = 0.11;
+                this.recoilRot = 0.32;
+                this.triggerFlash(this.deagleModel);
+                this.createSingleProjectile('deagle', w.damage);
+            } else {
+                this.audioManager.playRevolverShot();
+                this.recoilOffset = 0.08;
+                this.recoilRot = 0.25;
+                this.triggerFlash(this.revolverModel);
+                this.createSingleProjectile('holy', w.damage);
+            }
         } else if (this.activeSlot === 3 && this.hasMinigun) {
             if (this.weapons.minigun.reserve <= 0) {
                 return;
@@ -409,8 +622,29 @@ export class WeaponSystem {
     }
 
     createSingleProjectile(type, damage) {
-        const color = type === 'holy' ? 0xffea55 : (type === 'vulcan' ? 0xff8800 : 0x00f0ff);
-        const geo = new THREE.SphereGeometry(type === 'vulcan' ? 0.16 : 0.18, 5, 5);
+        let color = 0xffea55;
+        let radius = 0.18;
+        let speed = 150;
+
+        if (type === 'vulcan') {
+            color = 0xff8800;
+            radius = 0.16;
+            speed = 150;
+        } else if (type === 'neon') {
+            color = 0x00f0ff;
+            radius = 0.17;
+            speed = 160;
+        } else if (type === 'deagle') {
+            color = 0xffea22;
+            radius = 0.22;
+            speed = 160;
+        } else if (type === 'm16') {
+            color = 0xff9900;
+            radius = 0.14;
+            speed = 175;
+        }
+
+        const geo = new THREE.SphereGeometry(radius, 5, 5);
         const mat = new THREE.MeshBasicMaterial({ color: color });
         const mesh = new THREE.Mesh(geo, mat);
 
@@ -419,9 +653,10 @@ export class WeaponSystem {
         const dir = new THREE.Vector3();
         this.camera.getWorldDirection(dir);
 
-        if (type === 'vulcan' || type === 'neon') {
-            dir.x += (Math.random() - 0.5) * 0.025;
-            dir.y += (Math.random() - 0.5) * 0.025;
+        if (type === 'vulcan' || type === 'neon' || type === 'm16') {
+            const spread = type === 'm16' ? 0.015 : 0.025;
+            dir.x += (Math.random() - 0.5) * spread;
+            dir.y += (Math.random() - 0.5) * spread;
             dir.normalize();
         }
 
@@ -430,7 +665,7 @@ export class WeaponSystem {
         this.projectiles.push({
             mesh: mesh,
             dir: dir,
-            speed: 150,
+            speed: speed,
             damage: damage,
             life: 1.4
         });
@@ -466,24 +701,32 @@ export class WeaponSystem {
         if (this.isReloading || this.uziFrenzyActive) return;
 
         if (this.activeSlot === 1) {
-            if (this.weapons.shotgun.mag === this.weapons.shotgun.maxMag || this.weapons.shotgun.reserve <= 0) return;
+            const w = this.weapons[this.slot1Weapon] || this.weapons.shotgun;
+            if (w.mag === w.maxMag || w.reserve <= 0) return;
             this.isReloading = true;
             this.reloadTimer = this.reloadDuration;
-            this.audioManager.playShotgunPump();
+            if (this.slot1Weapon === 'm16') {
+                this.audioManager.playReload();
+            } else {
+                this.audioManager.playShotgunPump();
+            }
         } else if (this.activeSlot === 2) {
-            if (this.weapons.revolver.mag === this.weapons.revolver.maxMag || this.weapons.revolver.reserve <= 0) return;
+            const w = this.weapons[this.slot2Weapon] || this.weapons.revolver;
+            if (w.mag === w.maxMag || w.reserve <= 0) return;
             this.isReloading = true;
             this.reloadTimer = this.reloadDuration;
             this.audioManager.playReload();
         }
     }
 
+    /* --- PEDESTAL DE MINIGUN: TRASLADADO AL CENTRO DESPEJADO DEL MAPA --- */
     spawnMinigunPedestal() {
         if (this.minigunSpawned || this.hasMinigun) return;
         this.minigunSpawned = true;
 
         const group = new THREE.Group();
-        group.position.set(-70, 0, 50);
+        // Ubicado en (-70, 0, 20): pleno centro abierto del parque/avenida, sin colisión de la fuente
+        group.position.set(-70, 0, 20);
 
         const pedestal = new THREE.Mesh(
             new THREE.CylinderGeometry(1.2, 1.4, 0.8, 8),
@@ -492,18 +735,16 @@ export class WeaponSystem {
         pedestal.position.y = 0.4;
         group.add(pedestal);
 
-        const beam = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.6, 0.6, 12, 8),
-            new THREE.MeshBasicMaterial({ color: 0xffea00, transparent: true, opacity: 0.6 })
-        );
-        beam.position.y = 6.0;
-        group.add(beam);
+        // Aura de luz roja brillante para el arma desbloqueable
+        const aura = this.createAura(0xff1133, 6.0, 0.85);
+        group.add(aura);
 
         const miniVisual = this.buildMinigunModel();
         miniVisual.position.set(0, 1.2, 0);
         group.add(miniVisual);
         group.userData.miniVisual = miniVisual;
 
+        markDetailedMesh(group);
         this.scene.add(group);
         this.minigunPedestal = group;
         this.audioManager.playPickup();
@@ -559,6 +800,12 @@ export class WeaponSystem {
         c2.position.set(0, 0.65, 0);
         group.add(c2);
 
+        // Aura de luz amarilla brillante para municiones
+        const aura = this.createAura(0xffea00, 2.6, 0.42);
+        group.add(aura);
+        group.userData.aura = this.allAuras[this.allAuras.length - 1];
+
+        markDetailedMesh(group);
         this.scene.add(group);
         this.ammoPickups.push(group);
     }
@@ -582,8 +829,96 @@ export class WeaponSystem {
         c2.position.set(0, 0.65, 0);
         group.add(c2);
 
+        // Aura de luz verde brillante para botiquines
+        const aura = this.createAura(0x00ff66, 2.6, 0.42);
+        group.add(aura);
+        group.userData.aura = this.allAuras[this.allAuras.length - 1];
+
+        markDetailedMesh(group);
         this.scene.add(group);
         this.medkitPickups.push(group);
+    }
+
+    /* --- ESTACIONES DE ARMAS EN LA PLAYA (ESCOPETA Y REVÓLVER) --- */
+    spawnBeachWeaponStations() {
+        const createPedestalBase = (colorHex) => {
+            const group = new THREE.Group();
+            const ped = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.9, 1.1, 0.6, 8),
+                new THREE.MeshLambertMaterial({ color: 0x222228 })
+            );
+            ped.position.y = 0.3;
+            group.add(ped);
+
+            // Aura de luz roja brillante para armas
+            const aura = this.createAura(0xff1133, 3.8, 0.55);
+            group.add(aura);
+            return group;
+        };
+
+        // 1. Pedestal de Escopeta en la playa norte
+        const sGroup = createPedestalBase();
+        sGroup.position.set(30, 0, -15);
+        const sModel = this.buildShotgunModel();
+        sModel.position.set(0, 0.9, 0);
+        sGroup.add(sModel);
+        markDetailedMesh(sGroup);
+        this.scene.add(sGroup);
+        this.beachShotgunPedestal = sGroup;
+
+        // 2. Pedestal de Revólver en la playa sur
+        const rGroup = createPedestalBase();
+        rGroup.position.set(30, 0, 15);
+        const rModel = this.buildRevolverModel();
+        rModel.position.set(0, 0.9, 0);
+        rGroup.add(rModel);
+        markDetailedMesh(rGroup);
+        this.scene.add(rGroup);
+        this.beachRevolverPedestal = rGroup;
+    }
+
+    /* --- ARSENAL DEL CENTRO DEL MAPA DESBLOQUEABLE A LOS 10.000 PTS (M16 Y DEAGLE) --- */
+    spawnCenterArsenal() {
+        if (this.centerArsenalSpawned) return;
+        this.centerArsenalSpawned = true;
+
+        const createPedestalBase = () => {
+            const group = new THREE.Group();
+            const ped = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.9, 1.1, 0.6, 8),
+                new THREE.MeshLambertMaterial({ color: 0x1f1a28 })
+            );
+            ped.position.y = 0.3;
+            group.add(ped);
+
+            // Aura de luz roja brillante para armas
+            const aura = this.createAura(0xff1133, 4.2, 0.6);
+            group.add(aura);
+            return group;
+        };
+
+        // Pedestal de Desert Eagle .50AE (Centro oeste: x = -76, z = 20)
+        const dGroup = createPedestalBase();
+        dGroup.position.set(-76, 0, 20);
+        const dModel = this.buildDeagleModel();
+        dModel.position.set(0, 0.9, 0);
+        dGroup.add(dModel);
+        markDetailedMesh(dGroup);
+        this.scene.add(dGroup);
+        this.centerDeaglePedestal = dGroup;
+
+        // Pedestal de Colt M16 (Centro este: x = -64, z = 20)
+        const mGroup = createPedestalBase();
+        mGroup.position.set(-64, 0, 20);
+        const mModel = this.buildM16Model();
+        mModel.position.set(0, 0.9, 0);
+        mGroup.add(mModel);
+        markDetailedMesh(mGroup);
+        this.scene.add(mGroup);
+        this.centerM16Pedestal = mGroup;
+
+        this.audioManager.playPickup();
+        this.lastPickupText = '¡ARSENAL MILITAR DESBLOQUEADO EN EL CENTRO!';
     }
 
     update(delta, enemySystem) {
@@ -607,15 +942,22 @@ export class WeaponSystem {
             }
         }
 
-        // Desbloqueo de Minigun a 10.000 puntos
-        if (enemySystem && enemySystem.score >= 10000 && !this.minigunSpawned && !this.hasMinigun) {
-            this.spawnMinigunPedestal();
+        // Desbloqueo de Minigun y Arsenal del Centro (M16 y Desert Eagle) a los 10.000 puntos
+        if (enemySystem && enemySystem.score >= 10000) {
+            if (!this.minigunSpawned && !this.hasMinigun) {
+                this.spawnMinigunPedestal();
+            }
+            if (!this.centerArsenalSpawned) {
+                this.spawnCenterArsenal();
+            }
         }
 
-        // Recogida de Minigun en el pedestal
+        const playerPos = this.camera.position;
+
+        // Recogida de Minigun en el pedestal central
         if (this.minigunPedestal) {
-            this.minigunPedestal.rotation.y += delta * 2.0;
-            if (this.camera.position.distanceTo(this.minigunPedestal.position) < 3.0) {
+            this.minigunPedestal.rotation.y += delta * 1.5;
+            if (playerPos.distanceTo(this.minigunPedestal.position) < 3.0) {
                 this.hasMinigun = true;
                 this.activeSlot = 3;
                 this.updateVisibleModel();
@@ -626,21 +968,89 @@ export class WeaponSystem {
             }
         }
 
+        // Intercambio de armas en el Centro (M16 y Desert Eagle)
+        if (this.centerM16Pedestal) {
+            this.centerM16Pedestal.rotation.y += delta * 1.4;
+            if (playerPos.distanceTo(this.centerM16Pedestal.position) < 2.5) {
+                if (this.slot1Weapon !== 'm16') {
+                    this.slot1Weapon = 'm16';
+                    this.activeSlot = 1;
+                    this.weapons.m16.reserve = Math.min(240, this.weapons.m16.reserve + 60);
+                    this.updateVisibleModel();
+                    this.audioManager.playPickup();
+                    this.lastPickupText = '¡COLT M16 EQUIPADA [SLOT 1]!';
+                }
+            }
+        }
+
+        if (this.centerDeaglePedestal) {
+            this.centerDeaglePedestal.rotation.y += delta * 1.4;
+            if (playerPos.distanceTo(this.centerDeaglePedestal.position) < 2.5) {
+                if (this.slot2Weapon !== 'deagle') {
+                    this.slot2Weapon = 'deagle';
+                    this.activeSlot = 2;
+                    this.weapons.deagle.reserve = Math.min(70, this.weapons.deagle.reserve + 14);
+                    this.updateVisibleModel();
+                    this.audioManager.playPickup();
+                    this.lastPickupText = '¡DESERT EAGLE .50AE EQUIPADA [SLOT 2]!';
+                }
+            }
+        }
+
+        // Intercambio de armas en la Playa (Escopeta y Revólver)
+        if (this.beachShotgunPedestal) {
+            this.beachShotgunPedestal.rotation.y += delta * 1.4;
+            if (playerPos.distanceTo(this.beachShotgunPedestal.position) < 2.5) {
+                if (this.slot1Weapon !== 'shotgun') {
+                    this.slot1Weapon = 'shotgun';
+                    this.activeSlot = 1;
+                    this.weapons.shotgun.reserve = Math.min(28, this.weapons.shotgun.reserve + 6);
+                    this.updateVisibleModel();
+                    this.audioManager.playShotgunPump();
+                    this.lastPickupText = '¡ESCOPETA SAGRADA RE-EQUIPADA [SLOT 1]!';
+                }
+            }
+        }
+
+        if (this.beachRevolverPedestal) {
+            this.beachRevolverPedestal.rotation.y += delta * 1.4;
+            if (playerPos.distanceTo(this.beachRevolverPedestal.position) < 2.5) {
+                if (this.slot2Weapon !== 'revolver') {
+                    this.slot2Weapon = 'revolver';
+                    this.activeSlot = 2;
+                    this.weapons.revolver.reserve = Math.min(72, this.weapons.revolver.reserve + 12);
+                    this.updateVisibleModel();
+                    this.audioManager.playReload();
+                    this.lastPickupText = '¡REVÓLVER .357 RE-EQUIPADO [SLOT 2]!';
+                }
+            }
+        }
+
+        // Animación de todas las Auras Luminosas (columnas suaves)
+        for (let i = 0; i < this.allAuras.length; i++) {
+            const a = this.allAuras[i];
+            a.time += delta;
+            a.beam.rotation.y += delta * 0.5;
+            a.beam.material.opacity = 0.17 + Math.sin(a.time * 3.0) * 0.06;
+        }
+
         // Recarga
         if (this.isReloading) {
             this.reloadTimer -= delta;
             this.recoilRot = Math.sin((1.0 - (this.reloadTimer / this.reloadDuration)) * Math.PI) * 0.4;
             if (this.reloadTimer <= 0) {
                 if (this.activeSlot === 1) {
-                    const needed = this.weapons.shotgun.maxMag - this.weapons.shotgun.mag;
-                    const toAdd = Math.min(needed, this.weapons.shotgun.reserve);
-                    this.weapons.shotgun.mag += toAdd;
-                    this.weapons.shotgun.reserve -= toAdd;
+                    const w = this.weapons[this.slot1Weapon] || this.weapons.shotgun;
+                    const needed = w.maxMag - w.mag;
+                    const toAdd = Math.min(needed, w.reserve);
+                    w.mag += toAdd;
+                    w.reserve -= toAdd;
                 } else if (this.activeSlot === 2) {
-                    const needed = this.weapons.revolver.maxMag - this.weapons.revolver.mag;
-                    const toAdd = Math.min(needed, this.weapons.revolver.reserve);
-                    this.weapons.revolver.mag += toAdd;
-                    this.weapons.revolver.reserve -= toAdd;
+                    const w = this.weapons[this.slot2Weapon] || this.weapons.revolver;
+                    const needed = w.maxMag - w.mag;
+                    const toAdd = Math.min(needed, w.reserve);
+                    w.mag += toAdd;
+                    w.reserve -= toAdd;
                 }
                 this.isReloading = false;
                 this.recoilRot = 0;
@@ -685,26 +1095,42 @@ export class WeaponSystem {
             }
         }
 
-        // Recogida de Cajas de Munición Ponderadas
-        const playerPos = this.camera.position;
+        // Recogida de Cajas de Munición Ponderadas según armas equipadas
         for (let j = this.ammoPickups.length - 1; j >= 0; j--) {
             const pk = this.ammoPickups[j];
             pk.rotation.y += delta * 1.5;
 
             if (pk.position.distanceTo(playerPos) < 2.5) {
                 const rand = Math.random();
-                if (rand < 0.60) {
-                    this.weapons.revolver.reserve = Math.min(72, this.weapons.revolver.reserve + 12);
-                    this.lastPickupText = '+12 BALAS DE REVÓLVER';
-                } else if (rand < 0.90) {
-                    this.weapons.shotgun.reserve = Math.min(28, this.weapons.shotgun.reserve + 6);
-                    this.lastPickupText = '+6 CARTUCHOS DE ESCOPETA';
+                if (rand < 0.38) {
+                    // Munición Arma Primaria (Slot 1)
+                    if (this.slot1Weapon === 'm16') {
+                        this.weapons.m16.reserve = Math.min(240, this.weapons.m16.reserve + 30);
+                        this.lastPickupText = '+30 BALAS 5.56mm (COLT M16)';
+                    } else {
+                        this.weapons.shotgun.reserve = Math.min(28, this.weapons.shotgun.reserve + 6);
+                        this.lastPickupText = '+6 CARTUCHOS (ESCOPETA)';
+                    }
+                } else if (rand < 0.76) {
+                    // Munición Arma Secundaria (Slot 2)
+                    if (this.slot2Weapon === 'deagle') {
+                        this.weapons.deagle.reserve = Math.min(70, this.weapons.deagle.reserve + 7);
+                        this.lastPickupText = '+7 BALAS .50AE (DESERT EAGLE)';
+                    } else {
+                        this.weapons.revolver.reserve = Math.min(72, this.weapons.revolver.reserve + 12);
+                        this.lastPickupText = '+12 BALAS .357 (REVÓLVER)';
+                    }
                 } else {
+                    // Munición Minigun
                     this.weapons.minigun.reserve = Math.min(300, this.weapons.minigun.reserve + 60);
                     this.lastPickupText = '+60 BALAS DE MINIGUN';
                 }
 
                 this.audioManager.playPickup();
+                if (pk.userData && pk.userData.aura) {
+                    const aIdx = this.allAuras.indexOf(pk.userData.aura);
+                    if (aIdx !== -1) this.allAuras.splice(aIdx, 1);
+                }
                 this.scene.remove(pk);
                 this.ammoPickups.splice(j, 1);
             }
@@ -721,12 +1147,16 @@ export class WeaponSystem {
                     this.lastPickupText = '+30 SALUD (HP)';
                 }
                 this.audioManager.playHeal();
+                if (med.userData && med.userData.aura) {
+                    const aIdx = this.allAuras.indexOf(med.userData.aura);
+                    if (aIdx !== -1) this.allAuras.splice(aIdx, 1);
+                }
                 this.scene.remove(med);
                 this.medkitPickups.splice(k, 1);
             }
         }
 
-        // Spawn periódico
+        // Spawn periódico de botiquines y municiones
         this.pickupSpawnTimer += delta;
         if (this.pickupSpawnTimer >= 11.0) {
             this.pickupSpawnTimer = 0;

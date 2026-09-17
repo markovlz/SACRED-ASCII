@@ -1,3 +1,5 @@
+import { markDetailedMesh } from '../engine/AsciiShaderRenderer.js';
+
 /**
  * ParkTrees - Generador de árboles frondosos (robles y pinos) para Central Park
  */
@@ -28,6 +30,7 @@ export class ParkTrees {
             group.add(leafMesh);
         });
 
+        markDetailedMesh(group);
         return group;
     }
 
@@ -57,6 +60,7 @@ export class ParkTrees {
             group.add(cone);
         });
 
+        markDetailedMesh(group);
         return group;
     }
 }

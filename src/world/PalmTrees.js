@@ -1,3 +1,5 @@
+import { markDetailedMesh } from '../engine/AsciiShaderRenderer.js';
+
 /**
  * PalmTrees - Generador de palmeras tropicales erguidas estilo Vice City
  */
@@ -104,6 +106,7 @@ export class PalmTrees {
             group.add(leafArm);
         }
 
+        markDetailedMesh(group);
         return group;
     }
 }

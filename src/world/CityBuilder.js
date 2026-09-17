@@ -253,34 +253,13 @@ export class CityBuilder {
         const parkWidth = 70;
         const parkCenterX = -70;
 
+        // Superficie verde de césped de Central Park (limpia y despejada)
         const grassGeo = new THREE.PlaneGeometry(parkWidth, parkLength);
-        const grassMat = new THREE.MeshLambertMaterial({ color: 0x276638, roughness: 0.9 });
+        const grassMat = new THREE.MeshLambertMaterial({ color: 0x32964d, roughness: 0.85 });
         const grass = new THREE.Mesh(grassGeo, grassMat);
         grass.rotation.x = -Math.PI / 2;
         grass.position.set(parkCenterX, 0.05, 0);
         this.scene.add(grass);
-
-        // Lago Central
-        const lakeGeo = new THREE.PlaneGeometry(35, 110, 16, 16);
-        const lakeMat = new THREE.MeshLambertMaterial({ color: 0x114466, flatShading: true });
-        this.lakeMesh = new THREE.Mesh(lakeGeo, lakeMat);
-        this.lakeMesh.rotation.x = -Math.PI / 2;
-        this.lakeMesh.position.set(parkCenterX, 0.08, -15);
-        this.scene.add(this.lakeMesh);
-
-        // Puente de piedra estilo Bow Bridge
-        const bridge = new THREE.Mesh(
-            new THREE.BoxGeometry(40, 1.2, 8),
-            new THREE.MeshLambertMaterial({ color: 0x8a847e })
-        );
-        bridge.position.set(parkCenterX, 0.9, -15);
-        this.scene.add(bridge);
-
-        // ⛲ FUENTE DE AGUA ORNAMENTAL (Plaza Central de Central Park)
-        const fountain = this.buildWaterFountain();
-        fountain.position.set(parkCenterX, 0, 50);
-        this.scene.add(fountain);
-        this.addCircleCollider(parkCenterX, 50, 6.6);
 
         // Senderos peatonales
         const pathMat = new THREE.MeshLambertMaterial({ color: 0x756b5d });
@@ -295,8 +274,8 @@ export class CityBuilder {
         eastPath.position.set(parkCenterX + 18, 0.09, 0);
         this.scene.add(eastPath);
 
-        // Árboles con colisión cilíndrica
-        for (let z = -130; z <= 130; z += 15) {
+        // Árboles con colisión cilíndrica a lo largo del parque
+        for (let z = -135; z <= 135; z += 15) {
             const zO1 = z + (Math.random() * 4 - 2);
             const oak1 = ParkTrees.createOakTree(7.0 + Math.random() * 1.5);
             oak1.position.set(parkCenterX + 26, 0, zO1);
@@ -309,14 +288,26 @@ export class CityBuilder {
             this.scene.add(pine1);
             this.addCircleCollider(parkCenterX - 26, zP1, 0.75);
 
-            if (Math.abs(z) > 40 && Math.abs(z - 50) > 15) {
-                const oak2 = ParkTrees.createOakTree(6.5);
-                const xO2 = parkCenterX + (Math.random() * 20 - 10);
+            // Bosquecillos adicionales en la zona abierta (sin invadir fuentes ni arsenal central)
+            if (Math.abs(z % 30) < 5 && Math.abs(z - 65) > 10 && Math.abs(z + 65) > 10 && Math.abs(z - 20) > 12) {
+                const oak2 = ParkTrees.createOakTree(6.5 + Math.random());
+                const xO2 = parkCenterX + (Math.random() * 16 - 8);
                 oak2.position.set(xO2, 0, z);
                 this.scene.add(oak2);
                 this.addCircleCollider(xO2, z, 0.75);
             }
         }
+
+        // ⛲ Fuentes de Agua Ornamentales (Plaza Norte y Plaza Sur de Central Park)
+        const fountainNorth = this.buildWaterFountain();
+        fountainNorth.position.set(parkCenterX, 0, -65);
+        this.scene.add(fountainNorth);
+        this.addCircleCollider(parkCenterX, -65, 6.6);
+
+        const fountainSouth = this.buildWaterFountain();
+        fountainSouth.position.set(parkCenterX, 0, 65);
+        this.scene.add(fountainSouth);
+        this.addCircleCollider(parkCenterX, 65, 6.6);
     }
 
     buildWaterFountain() {
@@ -351,6 +342,7 @@ export class CityBuilder {
         return group;
     }
 
+
     buildManhattanSkyscraperDistrict() {
         const avenueX = -115;
         const avenueLength = 320;
@@ -383,10 +375,10 @@ export class CityBuilder {
 
         // 4. Rascacielos adicionales
         const additionalTowers = [
-            { x: -190, z: -110, h: 85, w: 30, color: 0x1c1833, neon: 0x00f0ff },
-            { x: -190, z: -40, h: 105, w: 32, color: 0x221838, neon: 0xff0077 },
-            { x: -190, z: 35, h: 95, w: 28, color: 0x151229, neon: 0xffdd00 },
-            { x: -190, z: 105, h: 80, w: 34, color: 0x201836, neon: 0x00ff88 }
+            { x: -190, z: -110, h: 85, w: 30, color: 0x3d3566, neon: 0x00f0ff },
+            { x: -190, z: -40, h: 105, w: 32, color: 0x47346b, neon: 0xff0077 },
+            { x: -190, z: 35, h: 95, w: 28, color: 0x382f61, neon: 0xffdd00 },
+            { x: -190, z: 105, h: 80, w: 34, color: 0x3f3266, neon: 0x00ff88 }
         ];
 
         additionalTowers.forEach(t => {
@@ -399,7 +391,7 @@ export class CityBuilder {
 
     buildEmpireStateBuilding() {
         const group = new THREE.Group();
-        const stoneMat = new THREE.MeshLambertMaterial({ color: 0x5e5669, flatShading: true });
+        const stoneMat = new THREE.MeshLambertMaterial({ color: 0x766c82, flatShading: true });
         const winMat = new THREE.MeshBasicMaterial({ color: 0xffea88 });
 
         const b1 = new THREE.Mesh(new THREE.BoxGeometry(34, 45, 34), stoneMat);
@@ -437,7 +429,7 @@ export class CityBuilder {
 
     buildChryslerTower() {
         const group = new THREE.Group();
-        const bodyMat = new THREE.MeshLambertMaterial({ color: 0x474254, flatShading: true });
+        const bodyMat = new THREE.MeshLambertMaterial({ color: 0x665c78, flatShading: true });
 
         const b1 = new THREE.Mesh(new THREE.BoxGeometry(28, 75, 28), bodyMat);
         b1.position.y = 37.5;
@@ -477,7 +469,7 @@ export class CityBuilder {
 
     buildTimesSquareTower() {
         const group = new THREE.Group();
-        const bodyMat = new THREE.MeshLambertMaterial({ color: 0x221833 });
+        const bodyMat = new THREE.MeshLambertMaterial({ color: 0x3a2e50 });
 
         const b1 = new THREE.Mesh(new THREE.BoxGeometry(28, 80, 28), bodyMat);
         b1.position.y = 40;
@@ -551,6 +543,7 @@ export class CityBuilder {
                 jet.scale.set(1.0, scaleY, 1.0);
             });
         }
+
 
         if (this.billboardMesh) {
             const hue = (this.time * 0.2) % 1.0;
